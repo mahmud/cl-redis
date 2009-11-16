@@ -1,1 +1,24 @@
-Redis client library for Common Lisp, initial version, slow as hell.
+Redis client library for Common Lisp, initial version; all < 1.1 API implemented but slow as hell. Functions have the
+exact name as the Redis command, but with a redis-* prefix. They haven't undergone any other Lispification (not dashes.)
+
+Usage:
+
+(push #p"/path/to/cl-redis/" asdf:*central-registry*)
+
+(asdf:operate 'asdf:load-op :cl-redis)
+
+(use-pacakge :cl-redis)
+
+(redis-ping) ==> "PONG"
+
+(redis-set "myname" "Happy Joker") ==> "1"
+(redis-get "myname") ==> "Happy Joker"
+
+etc, etc.
+
+The API is such that all functions expect string arguments, same as the Redis commands. All results are as raw strings,
+not Lispified yet. Where you see multiple-values, the primary result value is the result of the Redis command, and the
+secondary numerical value is the CHAR-CODE of the prompt!
+
+Currently, it's slow because there is no connection pooling. Every function call establishes a new connection and tears it down upon exit. Horrible.
+

@@ -1,63 +1,19 @@
-(defpackage #:redis 
-  (:use :cl :usocket :bordeaux-threads :babel)
-  (:export 
-   ;; connection handling
-   #:redis-quit #:redis-auth #:redis-ping
+;;; Redis client library for Common Lisp
 
-   ;; string values
-   #:redis-set #:redis-get #:redis-getset #:redis-mget #:redis-setnx 
-   #:redis-incr #:redis-incrby #:redis-decry #:redis-decrby
-   #:redis-exists #:redis-del #:redis-type
-
-   ;; key space
-   #:redis-keys #:redis-randomkey #:redis-rename #:redis-dbsize #:redis-expire #:redis-ttl
-
-   ;; lists
-   #:redis-rpush #:redis-lpush #:redis-llen #:redis-lrange #:redis-ltrim #:redis-lindex
-   #:redis-lset #:redis-lrem #:redis-lpop #:redis-rpop #:redis-rpoplpush
-   
-   ;; sets
-   #:redis-sadd #:redis-srem #:redis-smove #:redis-scard #:redis-sismember #:redis-sinter
-   #:redis-sinterstore #:redis-sunion #:redis-sunionstore #:redis-sdiff #:redis-sdiffstore
-   #:redis-smembers
-
-   ;; multiple-database handling
-   #:redis-select #:redis-move #:redis-flushdb #:redis-flushall
-
-   ;; sort ;; TODO
-   
-   ;; persitence control
-   #:redis-save #:redis-bgsave #:redis-lastsave #:redis-shutdown
-
-   ;; remote server control
-   #:redis-info #:redis-monitor #:redis-slaveof
-
-   ))
 
 (in-package :redis)
 
 (defparameter *redis-host* "localhost")
 (defparameter *redis-port* 6379)
 
-(defparameter +cr+ (code-char 13))
-(defparameter +lf+ (code-char 10))
+(defconstant +cr+ (code-char 13))
+(defconstant +lf+ (code-char 10))
 (defparameter +dollar+ (char-code #\$))
 
 (defparameter +crlf+ (concatenate 'string (string +cr+) (string +lf+)))
 
 (defvar *redis-socket*)
 (defvar *redis-stream*)
-
-;; (defmacro with-redis (&body body)
-;;   `(let* ((*redis-socket* (unless (boundp '*redis-socket*)
-;; 			    (socket-connect *redis-host* *redis-port* :element-type '(unsigned-byte 8))))
-;; 	  (*redis-stream* (unless (boundp '*redis-stream*)
-;; 			    (socket-stream *redis-socket*))))
-;;     (unwind-protect 
-;; 	 (prog1 
-;; 	   (values (progn  ,@body))
-;; 	   (finish-output *redis-stream*))
-;;       (socket-close *redis-socket*))))
 
 
 (defmacro with-redis (&body body)
@@ -69,13 +25,15 @@
 (defun write-octets (seq &optional (stream *redis-stream*))
   (let ((str (concatenate 'string seq (string +cr+) (string +lf+))))
 #+debug-redis    (format *redis-debug-stream* "--> ~s~%" str)
-;#+debug-redis nil 
     (write-sequence (babel:string-to-octets str) stream)
     (force-output stream)))
  
 (defun read-terminated-octets (&optional (terminator (char-code +cr+)))
   (let ((octets (loop for x = (read-byte *redis-stream*) until (equalp x terminator) collecting x)))
     (coerce octets 'vector)))
+
+(defun range (start end)
+  (loop for x from start to end collecting x))
     
 
 (defun vec-to-str (vector)
@@ -312,7 +270,7 @@
   "returns multi-bulk reply"
   (with-redis
     (write-octets (stringify "LRANGE" key start end))
-    (read-multi-bulk-result (utils:range (parse-integer start) (parse-integer end)))))
+    (read-multi-bulk-result (range (parse-integer start) (parse-integer end)))))
 
 (defun redis-ltrim (key start end)
   "returns status code reply"
