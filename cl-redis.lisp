@@ -24,7 +24,7 @@
 
 (defun write-octets (seq &optional (stream *redis-stream*))
   (let ((str (concatenate 'string seq (string +cr+) (string +lf+))))
-#+debug-redis    (format *redis-debug-stream* "--> ~s~%" str)
+#-debug-redis    (format *redis-debug-stream* "--> ~s~%" str)
     (write-sequence (babel:string-to-octets str) stream)
     (force-output stream)))
  
@@ -49,26 +49,9 @@
 					    strings)
 				      "" " ")
 				  (car (last strings))))))
-				
-
-;; (defun stringify (&rest strings)
-;;   (let ((result ""))
-;;     (loop for x in (butlast strings) do
-;; 	  (setf result (concatenate 'string result " " x)))
-;;     (string-trim " " (concatenate 'string result (car (last strings))))))
-
 
 (defun skip-until ()
-  (loop for x = (read-byte *redis-stream* nil) until (or (null x) (= x 10)))) ; collecting x))
-;	(princ x)))
-
-
-;; (with-input-from-string (*redis-stream* "Hello World$Joy")
-;;   (loop for x = (read-char *redis-stream* nil) until (or (null x) (char= x #\$)) do
-;; 	(princ x))
-;;   (peek-char nil *redis-stream* nil nil))
-  
-
+  (loop for x = (read-byte *redis-stream* nil) until (or (null x) (= x 10))))
 
 (defun read-status ()
   (let* ((status (read-byte *redis-stream* nil nil)))
@@ -88,7 +71,6 @@
 
 (defun read-bulk-result ()
   (multiple-value-bind (length status) (read-status)
- ;   (format t "read-bulk-result: length = ~a~tstatus = ~a~%" length status)
     (when (= status +dollar+)
       (let ((size (parse-integer length :junk-allowed t)))
 	(if (plusp size)
@@ -142,10 +124,10 @@
     (write-octets (stringify "GET" name))
     (read-bulk-result)))
 
-(defun redis-getset (key value)
+(defun redis-getset (key value) ;; unknown command in <=0.9
   "returns bulk reply"
   (with-redis
-    (write-octets (stringify "GETSET" key (princ-to-string (1+ (length value))) +crlf+ value))
+    (write-octets (stringify "GETSET" key (princ-to-string  (length value)) +crlf+ value))
     (read-bulk-result)))
 
 (defun redis-mget (&rest keys)
@@ -157,7 +139,7 @@
 (defun redis-setnx (key value)
   "returns integer code"
    (with-redis
-     (write-octets (stringify "SETNX" key (princ-to-string (1+ (length value))) +crlf+  value))
+     (write-octets (stringify "SETNX" key (princ-to-string (length value)) +crlf+  value))
      (read-integer-result)))
 
 (defun redis-incr (key)
@@ -257,13 +239,13 @@
 (defun redis-rpush (key string)
   "returns status code reply"
   (with-redis
-    (write-octets (stringify "RPUSH" key (princ-to-string (1+ (length string))) +crlf+ string))
+    (write-octets (stringify "RPUSH" key (princ-to-string (length string)) +crlf+ string))
     (read-status)))
 
 (defun redis-lpush (key string)
   "returns status code reply"
   (with-redis
-    (write-octets (stringify "LPUSH" key (princ-to-string (1+ (length string))) +crlf+ string))
+    (write-octets (stringify "LPUSH" key (princ-to-string (length string)) +crlf+ string))
     (read-status)))
 
 (defun redis-llen (key)
@@ -287,13 +269,13 @@
 (defun redis-lset (key index value)
   "returns status code reply"
   (with-redis
-    (write-octets (stringify "LSET" key index (princ-to-string (1+ (length value))) +crlf+ value))
+    (write-octets (stringify "LSET" key index (princ-to-string (length value)) +crlf+ value))
     (read-status)))
 
 (defun redis-lrem (key count value)
   "returns integer code reply"
   (with-redis
-    (write-octets (stringify "LREM" key count (princ-to-string (1+ (length value))) +crlf+ value))
+    (write-octets (stringify "LREM" key count (princ-to-string (length value)) +crlf+ value))
     (read-integer-result)))
 
 (defun redis-lpop (key)
@@ -320,7 +302,7 @@
 (defun redis-sadd (key member)
   "returns integer code reply"
   (with-redis
-    (write-octets (stringify "SADD" key (princ-to-string (1+ (length member))) +crlf+ member))
+    (write-octets (stringify "SADD" key (princ-to-string (length member)) +crlf+ member))
     (read-integer-result)))
 
 (defun redis-srem (key member)
@@ -332,7 +314,7 @@
 (defun redis-smove (src-key dest-key member)
   "returns integer code reply"
   (with-redis
-    (write-octets (stringify "SMOVE" src-key dest-key (princ-to-string (1+ (length member))) +crlf+ member))
+    (write-octets (stringify "SMOVE" src-key dest-key (princ-to-string (length member)) +crlf+ member))
     (read-integer-result)))
 
 (defun redis-scard (key)
@@ -344,7 +326,7 @@
 (defun redis-sismember (key member)
   "returns integer code reply"
   (with-redis
-    (write-octets (stringify "SISMEMBER" key (princ-to-string (1+ (length member))) +crlf+  member))
+    (write-octets (stringify "SISMEMBER" key (princ-to-string (length member)) +crlf+  member))
     (read-integer-result)))
 
 (defun redis-sinter (&rest keys)
