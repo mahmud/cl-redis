@@ -41,9 +41,15 @@
 
 (defun stringify (&rest strings)
   (let ((result ""))
-    (loop for x in strings do
-	  (setf result (concatenate 'string result " " x)))
-    (string-trim " " result)))
+    (loop for x in (butlast strings) do
+	 (setf result (concatenate 'string result " " x)))
+    (string-trim " " (concatenate 'string result
+				  (if (some (lambda (x)
+					      (equalp x +crlf+))
+					    strings)
+				      "" " ")
+				  (car (last strings))))))
+				
 
 ;; (defun stringify (&rest strings)
 ;;   (let ((result ""))
@@ -66,7 +72,7 @@
 
 (defun read-status ()
   (let* ((status (read-byte *redis-stream* nil nil)))
-;	 (len (read-byte *redis-stream* nil nil)))
+    ;;	 (len (read-byte *redis-stream* nil nil)))    
     (when status
       (let ((result (vec-to-str (read-terminated-octets))))
 	(skip-until)
@@ -127,7 +133,7 @@
 (defun redis-set (key value)
   "returns status code"
    (with-redis
-     (write-octets (stringify "SET" key (princ-to-string (1+ (length value))) +crlf+  value))
+     (write-octets (stringify "SET" key (princ-to-string (length value)) +crlf+  value))
      (read-status)))
     
 (defun redis-get (name)
